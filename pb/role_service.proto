@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package karavi;
+option go_package = "github.com/dell/karavi-authorization/pb";
+ 
+import "google/protobuf/empty.proto";
+
+message Role {
+  string name  = 1;
+  string systemType = 2;
+  string systemID = 3;
+  string pool = 4;
+  int32 quota = 5;
+}
+
+message CreateRoleRequest {
+  Role role = 1;
+}
+
+message GetRoleRequest {
+  string name = 1;
+  string systemType = 2;
+  string systemID = 3;
+  string pool = 4;
+  int32 quota = 5;
+}
+
+message DeleteRoleRequest {
+  string name = 1;
+}
+
+message ListRoleRequest {
+  int32 page_size  = 1;
+  int32 page_token = 2;
+}
+
+message ListRoleResponse {
+  repeated Role roles = 1;
+  string next_page_token  = 2;
+}
+
+service RoleService {
+  rpc CreateRole(CreateRoleRequest) returns (Role) {};
+  rpc GetRole(GetRoleRequest) returns (Role) {};
+  rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty) {};
+  rpc ListRole(ListRoleRequest) returns (ListRoleResponse) {};
+}

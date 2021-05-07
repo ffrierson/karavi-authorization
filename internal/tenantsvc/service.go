@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"karavi-authorization/internal/token"
 	"karavi-authorization/pb"
+	"net/http"
 	"log"
 	"strings"
 	"time"
@@ -97,6 +98,18 @@ func NewTenantService(opts ...Option) *TenantService {
 		opt(&t)
 	}
 	return &t
+}
+
+// Start starts the HTTP service
+func (t* TenantService) Start(ctx context.Context) {
+	http.ListenAndServe(":8000", t)
+}
+
+// ServeHTTP connects to redis
+func (t* TenantService) ServeHTTP(w http.ResponseWriter, r *http.Request){
+	// Connect to redis
+	// call "get roles"
+	// Return json data
 }
 
 // CreateTenant handles tenant creation requests.

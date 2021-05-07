@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"karavi-authorization/internal/tenantsvc"
+	"karavi-authorization/internal/rolesvc"
 	"karavi-authorization/pb"
 	"log"
 	"net"
@@ -106,7 +107,14 @@ func main() {
 		tenantsvc.WithLogger(log),
 		tenantsvc.WithRedis(rdb),
 		tenantsvc.WithJWTSigningSecret(cfg.Web.JWTSigningSecret))
+	
+	roleSvc := rolesvc.NewRoleService(
+		rolesvc.WithLogger(log),
+		rolesvc.WithRedis(rdb),
+		rolesvc.WithJWTSigningSecret(cfg.Web.JWTSigningSecret))
+
 	gs := grpc.NewServer()
+	pb.RegisterRoleServiceServer(gs, roleSvc)
 	pb.RegisterTenantServiceServer(gs, tenantSvc)
 
 	log.Println("Serving tenant service on", cfg.GrpcListenAddr)

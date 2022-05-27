@@ -27,6 +27,7 @@ type TenantServiceClient interface {
 	DeleteTenant(ctx context.Context, in *DeleteTenantRequest, opts ...grpc.CallOption) (*DeleteTenantResponse, error)
 	ListTenant(ctx context.Context, in *ListTenantRequest, opts ...grpc.CallOption) (*ListTenantResponse, error)
 	BindRole(ctx context.Context, in *BindRoleRequest, opts ...grpc.CallOption) (*BindRoleResponse, error)
+	ListBindRole(ctx context.Context, in *ListBindRoleRequest, opts ...grpc.CallOption) (*ListBindRoleResponse, error)
 	UnbindRole(ctx context.Context, in *UnbindRoleRequest, opts ...grpc.CallOption) (*UnbindRoleResponse, error)
 	GenerateToken(ctx context.Context, in *GenerateTokenRequest, opts ...grpc.CallOption) (*GenerateTokenResponse, error)
 	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
@@ -87,6 +88,15 @@ func (c *tenantServiceClient) BindRole(ctx context.Context, in *BindRoleRequest,
 	return out, nil
 }
 
+func (c *tenantServiceClient) ListBindRole(ctx context.Context, in *ListBindRoleRequest, opts ...grpc.CallOption) (*ListBindRoleResponse, error) {
+	out := new(ListBindRoleResponse)
+	err := c.cc.Invoke(ctx, "/karavi.TenantService/ListBindRole", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tenantServiceClient) UnbindRole(ctx context.Context, in *UnbindRoleRequest, opts ...grpc.CallOption) (*UnbindRoleResponse, error) {
 	out := new(UnbindRoleResponse)
 	err := c.cc.Invoke(ctx, "/karavi.TenantService/UnbindRole", in, out, opts...)
@@ -141,6 +151,7 @@ type TenantServiceServer interface {
 	DeleteTenant(context.Context, *DeleteTenantRequest) (*DeleteTenantResponse, error)
 	ListTenant(context.Context, *ListTenantRequest) (*ListTenantResponse, error)
 	BindRole(context.Context, *BindRoleRequest) (*BindRoleResponse, error)
+	ListBindRole(context.Context, *ListBindRoleRequest) (*ListBindRoleResponse, error)
 	UnbindRole(context.Context, *UnbindRoleRequest) (*UnbindRoleResponse, error)
 	GenerateToken(context.Context, *GenerateTokenRequest) (*GenerateTokenResponse, error)
 	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
@@ -167,6 +178,9 @@ func (UnimplementedTenantServiceServer) ListTenant(context.Context, *ListTenantR
 }
 func (UnimplementedTenantServiceServer) BindRole(context.Context, *BindRoleRequest) (*BindRoleResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BindRole not implemented")
+}
+func (UnimplementedTenantServiceServer) ListBindRole(context.Context, *ListBindRoleRequest) (*ListBindRoleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBindRole not implemented")
 }
 func (UnimplementedTenantServiceServer) UnbindRole(context.Context, *UnbindRoleRequest) (*UnbindRoleResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnbindRole not implemented")
@@ -282,6 +296,24 @@ func _TenantService_BindRole_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TenantServiceServer).BindRole(ctx, req.(*BindRoleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TenantService_ListBindRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBindRoleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantServiceServer).ListBindRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/karavi.TenantService/ListBindRole",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantServiceServer).ListBindRole(ctx, req.(*ListBindRoleRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -402,6 +434,10 @@ var TenantService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BindRole",
 			Handler:    _TenantService_BindRole_Handler,
+		},
+		{
+			MethodName: "ListBindRole",
+			Handler:    _TenantService_ListBindRole_Handler,
 		},
 		{
 			MethodName: "UnbindRole",

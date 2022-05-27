@@ -199,6 +199,43 @@ func (t *TenantService) BindRole(ctx context.Context, req *pb.BindRoleRequest) (
 	return &pb.BindRoleResponse{}, nil
 }
 
+// ListBindRole handles rolebinding list requests.
+func (t *TenantService) ListBindRole(ctx context.Context, req *pb.ListBindRoleRequest) (*pb.ListBindRoleResponse, error) {
+
+	var roleBindings []*pb.RoleBinding
+
+	var cursor uint64
+	for {
+		keys, nextCursor, err := t.rdb.Scan(cursor, "tenant:*:data", 10).Result()
+		if err != nil {
+			return nil, err
+		}
+		// for each tenant find all roles and append to the result
+		for _, v := range keys {
+			split := strings.Split(v, ":")
+			roleBinding := &pb.RoleBinding{
+				Tenant: split[1],
+				Roles:  []string{},
+			}
+			roles, err := t.rdb.SMembers(tenantRolesKey(split[1])).Result()
+			if err != nil {
+				return nil, err
+			}
+			roleBinding.Roles = roles
+			roleBindings = append(roleBindings, roleBinding)
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return &pb.ListBindRoleResponse{
+		Rolebindings: roleBindings,
+	}, nil
+}
+
 // UnbindRole handles rolebinding deletion requests.
 func (t *TenantService) UnbindRole(ctx context.Context, req *pb.UnbindRoleRequest) (*pb.UnbindRoleResponse, error) {
 	// Update a set with role -> tenants mappings

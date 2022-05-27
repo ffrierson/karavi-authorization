@@ -58,6 +58,7 @@ func TestTenantService(t *testing.T) {
 	t.Run("ListTenant", testListTenant(sut, rdb, afterFn))
 	t.Run("BindRole", testBindRole(sut, rdb, afterFn))
 	t.Run("UnbindRole", testUnbindRole(sut, rdb, afterFn))
+	t.Run("ListRoleBind", testListRoleBind(sut, rdb, afterFn))
 	t.Run("GenerateToken", testGenerateToken(sut, rdb, afterFn))
 	t.Run("RefreshToken", testRefreshToken(sut, rdb, afterFn))
 	t.Run("RevokeTenant", testRevokeTenant(sut, rdb, afterFn))
@@ -230,6 +231,40 @@ func testBindRole(sut *tenantsvc.TenantService, rdb *redis.Client, afterFn After
 			if got.Roles != roleName {
 				t.Errorf("got roles %q, want %q", got.Roles, roleName)
 			}
+		})
+	}
+}
+
+func testListRoleBind(sut *tenantsvc.TenantService, rdb *redis.Client, afterFn AfterFunc) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Run("it lists all role bindings", func(t *testing.T) {
+			defer afterFn()
+			createTenant(t, sut, tenantConfig{Name: "tenant-1", Roles: "role-1,role-2"})
+			createTenant(t, sut, tenantConfig{Name: "tenant-2", Roles: "role-3"})
+			expectedRoleBindings := 2
+
+			response, err := sut.ListBindRole(context.Background(), &pb.ListBindRoleRequest{})
+
+			checkError(t, err)
+			if len(response.Rolebindings) != expectedRoleBindings {
+				t.Errorf("expected %d rolebindings but %d were returned", expectedRoleBindings, len(response.Rolebindings))
+			}
+
+			for _, roleBinding := range response.Rolebindings {
+				switch roleBinding.Tenant {
+				case "tenant-1":
+					if len(roleBinding.Roles) != 2 {
+						t.Errorf("expected 2 roles for tenant %s but %d were returned", roleBinding.Tenant, len(roleBinding.Roles))
+					}
+				case "tenant-2":
+					if len(roleBinding.Roles) != 1 {
+						t.Errorf("expected 1 roles for tenant %s but %d were returned", roleBinding.Tenant, len(roleBinding.Roles))
+					}
+				default:
+					t.Errorf("unknown tenant %s returned", roleBinding.Tenant)
+				}
+			}
+
 		})
 	}
 }

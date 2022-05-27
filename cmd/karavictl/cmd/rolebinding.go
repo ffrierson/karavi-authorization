@@ -39,5 +39,6 @@ func NewRoleBindingCmd() *cobra.Command {
 
 	rolebindingCmd.AddCommand(NewCreateRoleBindingCmd())
 	rolebindingCmd.AddCommand(NewDeleteRoleBindingCmd())
+	rolebindingCmd.AddCommand(NewListRoleBindingCmd())
 	return rolebindingCmd
 }

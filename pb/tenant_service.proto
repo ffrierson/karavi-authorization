@@ -40,6 +40,16 @@ message BindRoleRequest {
 
 message BindRoleResponse {}
 
+message RoleBinding {
+  string tenant = 1;
+  repeated string roles = 2;
+}
+message ListBindRoleRequest {}
+message ListBindRoleResponse {
+  repeated RoleBinding rolebindings = 1;
+  string next_page_token  = 2;
+}
+
 message UnbindRoleRequest {
   string TenantName = 1;
   string RoleName   = 2;
@@ -85,6 +95,7 @@ service TenantService {
   rpc DeleteTenant(DeleteTenantRequest) returns (DeleteTenantResponse) {};
   rpc ListTenant(ListTenantRequest) returns (ListTenantResponse) {};
   rpc BindRole(BindRoleRequest) returns (BindRoleResponse) {};
+  rpc ListBindRole(ListBindRoleRequest) returns (ListBindRoleResponse) {};
   rpc UnbindRole(UnbindRoleRequest) returns (UnbindRoleResponse) {};
   rpc GenerateToken(GenerateTokenRequest) returns (GenerateTokenResponse) {};
   rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {};

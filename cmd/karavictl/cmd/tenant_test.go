@@ -29,6 +29,7 @@ type fakeTenantServiceClient struct {
 	ListTenantFn   func(context.Context, *pb.ListTenantRequest, ...grpc.CallOption) (*pb.ListTenantResponse, error)
 	BindRoleFn     func(context.Context, *pb.BindRoleRequest, ...grpc.CallOption) (*pb.BindRoleResponse, error)
 	UnbindRoleFn   func(context.Context, *pb.UnbindRoleRequest, ...grpc.CallOption) (*pb.UnbindRoleResponse, error)
+	ListBindRoleFn func(context.Context, *pb.ListBindRoleRequest, ...grpc.CallOption) (*pb.ListBindRoleResponse, error)
 }
 
 func (f *fakeTenantServiceClient) CreateTenant(ctx context.Context, in *pb.CreateTenantRequest, opts ...grpc.CallOption) (*pb.Tenant, error) {
@@ -75,4 +76,11 @@ func (f *fakeTenantServiceClient) UnbindRole(ctx context.Context, in *pb.UnbindR
 		return f.UnbindRoleFn(ctx, in, opts...)
 	}
 	return &pb.UnbindRoleResponse{}, nil
+}
+
+func (f *fakeTenantServiceClient) ListBindRole(ctx context.Context, in *pb.ListBindRoleRequest, opts ...grpc.CallOption) (*pb.ListBindRoleResponse, error) {
+	if f.ListBindRoleFn != nil {
+		return f.ListBindRoleFn(ctx, in, opts...)
+	}
+	return &pb.ListBindRoleResponse{}, nil
 }

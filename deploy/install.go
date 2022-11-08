@@ -453,13 +453,13 @@ func (dp *DeployProcess) InstallK3sSELinux() {
 	// Only install package if selinux is enabled
 	SELinuxStatusOutput, err := execCommand("getenforce").Output()
 	if err != nil {
-		dp.Err = fmt.Errorf("getting SELinux status: %w", err)
+		fmt.Fprintf(dp.stdout, "SELinux not enabled. Skipping install of k3s SELinux")
 		return
 	}
 
 	SELinuxStatus := string(SELinuxStatusOutput[:])
 	if !strings.HasPrefix(SELinuxStatus, "Enforcing") {
-		dp.Err = fmt.Errorf("SELinux is not enabled")
+		fmt.Fprintf(dp.stdout, "SELinux not enabled. Skipping install of k3s SELinux")
 		return
 	}
 

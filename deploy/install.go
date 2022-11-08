@@ -95,6 +95,7 @@ const (
 	k3SInstallScript       = "k3s-install.sh"
 	k3sBinary              = "k3s"
 	k3SImagesTar           = "k3s-airgap-images-" + arch + ".tar"
+	k3SSELinuxRPM          = "-k3s-selinux.rpm"
 	authImagesTar          = "credential-shield-images.tar"
 	authDeploymentManifest = "deployment.yaml"
 	authIngressManifest    = "ingress-traefik.yaml"
@@ -183,6 +184,7 @@ func NewDeploymentProcess(stdout, stderr io.Writer, bundle fs.FS) *DeployProcess
 		dp.AddCertificate,
 		dp.AddHostName,
 		dp.InstallKaravictl,
+		dp.InstallK3sSELinux,
 		dp.CreateRancherDirs,
 		dp.InstallK3s,
 		dp.CopyImagesToRancherDirs,
@@ -439,6 +441,86 @@ func (dp *DeployProcess) InstallKaravictl() {
 		dp.Err = fmt.Errorf("chmod karavictl: %w", err)
 		return
 	}
+}
+
+// InstallK3sSELinux installs the k3s_selinux package for
+// the proper environment
+func (dp *DeployProcess) InstallK3sSELinux() {
+	if dp.Err != nil {
+		return
+	}
+
+	// Only install package if selinux is enabled
+	SELinuxStatusOutput, err := execCommand("getenforce").Output()
+	if err != nil {
+		dp.Err = fmt.Errorf("getting SELinux status: %w", err)
+		return
+	}
+
+	SELinuxStatus := string(SELinuxStatusOutput[:])
+	if !strings.HasPrefix(SELinuxStatus, "Enforcing") {
+		dp.Err = fmt.Errorf("SELinux is not enabled")
+		return
+	}
+
+	fmt.Fprintf(dp.stdout, "Installing SELinux into /usr/local/bin...")
+	defer fmt.Fprintln(dp.stdout, "Done!")
+
+	// Get env from etc/os-release
+	release, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		dp.Err = fmt.Errorf("reading /etc/os-release: %w", err)
+		return
+	}
+
+	releaseArray := strings.Split(string(release), "\n")
+	var id_like, version_id, os_env, package_installer string
+
+	for i := 0; i < len(releaseArray); i++ {
+		word := releaseArray[i]
+		if strings.HasPrefix(word, "ID_LIKE=") {
+			id_like = strings.ReplaceAll(strings.Replace(word, "ID_LIKE=", "", 1), "\"", "")
+		} else if strings.HasPrefix(word, "VERSION_ID=") {
+			version_id = strings.ReplaceAll(strings.Replace(word, "VERSION_ID=", "", 1), "\"", "")
+		}
+	}
+
+	// Set package_installer
+	if id_like == "suse" {
+		os_env = "microos"
+		package_installer = "zypper"
+	} else if strings.HasPrefix(version_id, "7") {
+		os_env = "centos7"
+		package_installer = "yum"
+	} else {
+		os_env = "centos8"
+		package_installer = "yum"
+	}
+
+	dnfPath, dnfErr := exec.LookPath("dnf")
+	if package_installer == "yum" && dnfPath != "" && dnfErr == nil {
+		package_installer = "dnf"
+	}
+
+	// Install selinux rpm
+	rpm_package_path := filepath.Join(dp.tmpDir, os_env+k3SSELinuxRPM)
+	fmt.Fprintf(dp.stdout, "\npackage_installer: ", package_installer, "\n")
+	fmt.Fprintf(dp.stdout, "rpm path: ", rpm_package_path, "\n")
+	fmt.Fprintf(dp.stdout, "os_env: ", os_env, "\n")
+	fmt.Fprintf(dp.stdout, "k3sselinuxrpm: ", k3SSELinuxRPM, "\n")
+	fmt.Fprintf(dp.stdout, "id_like: ", id_like, "\n")
+	fmt.Fprintf(dp.stdout, "version_id: ", version_id, "\n")
+
+	selinuxInstallCmd := execCommand(package_installer, "install", "-y", rpm_package_path)
+
+	installOutput, selinuxInstallErr := selinuxInstallCmd.Output()
+	if selinuxInstallErr != nil {
+		stringInstallOutput := string(installOutput[:])
+		fmt.Fprintf(dp.stdout, "installOutput: ", stringInstallOutput, "\n")
+		dp.Err = fmt.Errorf("failed to install k3s SELinux with error: %s", selinuxInstallErr)
+		return
+	}
+
 }
 
 // CreateRancherDirs creates the pre-requisite directories

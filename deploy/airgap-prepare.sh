@@ -20,9 +20,9 @@ DIST=dist
 K3S_INSTALL_SCRIPT=${DIST}/k3s-install.sh
 K3S_BINARY=${DIST}/k3s
 K3S_IMAGES_TAR=${DIST}/k3s-airgap-images-$ARCH.tar
-K3S_SELINUX_MICROOS=${DIST}/k3s-microos-selinux.rpm
-K3S_SELINUX_CENTOS7=${DIST}/k3s-centos7-selinux.rpm
-K3S_SELINUX_CENTOS8=${DIST}/k3s-centos8-selinux.rpm
+K3S_SELINUX_MICROOS=${DIST}/microos-k3s-selinux.rpm
+K3S_SELINUX_CENTOS7=${DIST}/centos7-k3s-selinux.rpm
+K3S_SELINUX_CENTOS8=${DIST}/centos8-k3s-selinux.rpm
 
 CERT_MANAGER_IMAGES_TAR=${DIST}/cert-manager-images.tar
 CRED_SHIELD_IMAGES_TAR=${DIST}/credential-shield-images.tar

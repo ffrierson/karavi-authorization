@@ -28,8 +28,10 @@ import (
 	"syscall"
 
 	pscale "github.com/dell/goisilon"
+	"github.com/dell/gounity"
 	pmax "github.com/dell/gopowermax/v2"
 	types "github.com/dell/gopowermax/v2/types/v100"
+	github.com/dell/gounity"
 	"github.com/dell/goscaleio"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
@@ -39,6 +41,7 @@ const (
 	powerflex  = "powerflex"
 	powermax   = "powermax"
 	powerscale = "powerscale"
+	unity      = "unity"
 )
 
 // Storage represents a map of storage system types.
@@ -69,6 +72,7 @@ var supportedStorageTypes = map[string]struct{}{
 	powerflex:  {},
 	powermax:   {},
 	powerscale: {},
+	unity:      {},
 }
 
 // NewStorageCreateCmd creates a new create command
@@ -254,6 +258,42 @@ func NewStorageCreateCmd() *cobra.Command {
 						errAndExit(err)
 					}
 					if resp.System.ID != input.SystemID {
+						fmt.Fprintf(cmd.ErrOrStderr(), "system id %q not found", input.SystemID)
+						osExit(1)
+					}
+
+					storageID := strings.Trim(SystemID{Value: input.SystemID}.String(), "\"")
+					tempStorage[storageID] = System{
+						User:     input.User,
+						Password: input.Password,
+						Endpoint: input.Endpoint,
+						Insecure: input.ArrayInsecure,
+					}
+
+				case unity:
+					tempStorage = storage[unity]
+					if tempStorage == nil {
+						tempStorage = make(map[string]System)
+					}
+
+					sioClient, err := gounity.NewClientWithArgs(epURL.String(), "", true, false)
+					if err != nil {
+						errAndExit(err)
+					}
+
+					_, err = sioClient.Authenticate(ctx, &gounity.ConfigConnect{
+						Username: input.User,
+						Password: input.Password,
+					})
+					if err != nil {
+						errAndExit(err)
+					}
+
+					resp, err := sioClient.FindSystem(ctx)
+					if err != nil {
+						errAndExit(err)
+					}
+					if resp.Entries.Content.ID != input.SystemID {
 						fmt.Fprintf(cmd.ErrOrStderr(), "system id %q not found", input.SystemID)
 						osExit(1)
 					}

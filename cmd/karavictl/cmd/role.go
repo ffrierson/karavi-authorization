@@ -35,6 +35,7 @@ import (
 	pscale "github.com/dell/goisilon"
 	pmax "github.com/dell/gopowermax/v2"
 	"github.com/dell/goscaleio"
+	"github.com/dell/gounity"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -155,6 +156,11 @@ var GetPowerFlexEndpoint = func(storageSystemDetails System) string {
 	return storageSystemDetails.Endpoint
 }
 
+// GetUnityEndpoint returns the endpoint URL for a Unity system
+var GetUnityEndpoint = func(storageSystemDetails System) string {
+	return storageSystemDetails.Endpoint
+}
+
 // GetPowerMaxEndpoint returns the endpoint URL for a PowerMax system
 var GetPowerMaxEndpoint = func(storageSystemDetails System) string {
 	return storageSystemDetails.Endpoint
@@ -196,6 +202,39 @@ func validatePowerFlexPool(storageSystemDetails System, storageSystemID string, 
 	_, err = storagePool.GetStatistics()
 	if err != nil {
 		return err
+	}
+
+	if int(poolQuota.Quota) < 0 {
+		return errors.New("the specified quota needs to be a positive number")
+	}
+	return nil
+}
+
+func validateUnityPool(ctx context.Context, storageSystemDetails System, storageSystemID string, poolQuota PoolQuota) error {
+	endpoint := GetUnityEndpoint(storageSystemDetails)
+	epURL, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("endpoint is invalid: %+v", err)
+	}
+
+	epURL.Scheme = "https"
+	gounityClient, err := gounity.NewClientWithArgs(epURL.String(), "", storageSystemDetails.Insecure, false)
+	if err != nil {
+		return fmt.Errorf("unity client is not available: %+v", err)
+	}
+
+	_, err = gounityClient.Authenticate(&gounity.ConfigConnect{
+		Username: storageSystemDetails.User,
+		Password: storageSystemDetails.Password,
+	})
+
+	if err != nil {
+		return fmt.Errorf("unity authentication failed: %+v", err)
+	}
+
+	storagePool, err = gounityClient.ListStoragePool(ctx)
+	if err != nil && StoragePool.Entriespool.Contents.ID != "" {
+		return fmt.Errorf("failed to get pool from storage system: %+v", err)
 	}
 
 	if int(poolQuota.Quota) < 0 {
@@ -319,6 +358,14 @@ func validateRole(ctx context.Context, role *roles.Instance) error {
 		if err != nil {
 			return err
 		}
+	case "unity":
+		err := validateUnityPool(ctx, storageSystemDetails, role.SystemID, PoolQuota{
+			Pool:  role.Pool,
+			Quota: int64(role.Quota),
+		})
+		if err != nil {
+			return err
+		}
 	case "powermax":
 		err := validatePowerMaxStorageResourcePool(ctx, storageSystemDetails, role.SystemID, PoolQuota{
 			Pool:  role.Pool,
@@ -343,7 +390,7 @@ func validateRole(ctx context.Context, role *roles.Instance) error {
 }
 
 func validSystemType(sysType string) bool {
-	validSystemTypes := []string{"powerflex", "powermax", "powerscale"}
+	validSystemTypes := []string{"powerflex", "powermax", "powerscale", "unity"}
 
 	for _, s := range validSystemTypes {
 		if sysType == s {

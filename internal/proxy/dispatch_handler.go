@@ -80,6 +80,10 @@ func normalizePluginID(s string) string {
 				"csi-powerscale": struct{}{},
 				"isilon":         struct{}{},
 			},
+			"unity": {
+				"unity":     struct{}{},
+				"csi-unity": struct{}{},
+			},
 		},
 	}
 

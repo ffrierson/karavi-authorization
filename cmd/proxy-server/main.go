@@ -299,9 +299,10 @@ func run(log *logrus.Entry) error {
 	powerFlexHandler := proxy.NewPowerFlexHandler(log, enf, cfg.OpenPolicyAgent.Host)
 	powerMaxHandler := proxy.NewPowerMaxHandler(log, enf, cfg.OpenPolicyAgent.Host)
 	powerScaleHandler := proxy.NewPowerScaleHandler(log, enf, cfg.OpenPolicyAgent.Host)
+	unityHandler := proxy.NewUnityHandler(log, enf, cfg.OpenPolicyAgent.Host)
 
 	updaterFn := func() {
-		err := updateStorageSystems(log, storageSystemsPath, powerFlexHandler, powerMaxHandler, powerScaleHandler)
+		err := updateStorageSystems(log, storageSystemsPath, powerFlexHandler, powerMaxHandler, powerScaleHandler, unityHandler)
 		if err != nil {
 			log.WithError(err).Error("main: updating storage systems")
 		}
@@ -320,6 +321,7 @@ func run(log *logrus.Entry) error {
 		"powerflex":  web.Adapt(powerFlexHandler, web.OtelMW(tp, "powerflex"), web.AuthMW(log, jwx.NewTokenManager(jwx.HS256))),
 		"powermax":   web.Adapt(powerMaxHandler, web.OtelMW(tp, "powermax"), web.AuthMW(log, jwx.NewTokenManager(jwx.HS256))),
 		"powerscale": web.Adapt(powerScaleHandler, web.OtelMW(tp, "powerscale"), web.AuthMW(log, jwx.NewTokenManager(jwx.HS256))),
+		"unity": 	  web.Adapt(unityHandler, web.OtelMW(tp, "unity"), web.AuthMW(log, jwx.NewTokenManager(jwx.HS256))),
 	}
 	dh := proxy.NewDispatchHandler(log, systemHandlers)
 
@@ -404,7 +406,7 @@ func updateConfiguration(vc *viper.Viper, log *logrus.Entry) {
 	JWTSigningSecret = jss
 }
 
-func updateStorageSystems(log *logrus.Entry, storageSystemsPath string, powerFlexHandler *proxy.PowerFlexHandler, powerMaxHandler *proxy.PowerMaxHandler, powerScaleHandler *proxy.PowerScaleHandler) error {
+func updateStorageSystems(log *logrus.Entry, storageSystemsPath string, powerFlexHandler *proxy.PowerFlexHandler, powerMaxHandler *proxy.PowerMaxHandler, powerScaleHandler *proxy.PowerScaleHandler, unityHandler *proxy.UnityHandler) error {
 	// read the storage-systems file
 	storageYamlBytes, err := os.ReadFile(filepath.Clean(storageSystemsPath))
 	if err != nil {
@@ -451,6 +453,11 @@ func updateStorageSystems(log *logrus.Entry, storageSystemsPath string, powerFle
 	err = powerScaleHandler.UpdateSystems(context.Background(), bytes.NewReader(systemsJSONBytes), log)
 	if err != nil {
 		log.WithError(err).Error("main: updating powerscale systems")
+	}
+
+	err = unityHandler.UpdateSystems(context.Background(), bytes.NewReader(systemsJSONBytes), log)
+	if err != nil {
+		log.WithError(err).Error("main: updating unity systems")
 	}
 
 	return nil

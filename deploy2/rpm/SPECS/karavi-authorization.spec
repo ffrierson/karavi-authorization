@@ -1,7 +1,7 @@
 Name:           karavi-authorization-final
 Version:        1.4
 Release:        0
-Summary:        Karavi Authorization
+Summary:        Karavi Authorization Final
 
 License:        ASL 2.0
 #URL:

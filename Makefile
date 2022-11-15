@@ -13,6 +13,7 @@
 # limitations under the License.
 DOCKER_TAG ?= 1.4.0
 SIDECAR_TAG ?= 1.4.0
+VERSION_TAG ?= 1.4-0
 
 .PHONY: build
 build:
@@ -29,6 +30,7 @@ build:
 build-installer: 
 	# Requires dist artifacts
 	go build -tags=prod -o ./bin ./deploy/
+	go build -tags=prod -o ./bin ./deploy2/
 
 .PHONY: rpm
 rpm:
@@ -36,6 +38,11 @@ rpm:
 		-v $$PWD/deploy/rpm/pkg:/srv/pkg \
 		-v $$PWD/bin/deploy:/home/builder/rpm/deploy \
 		-v $$PWD/deploy/rpm:/home/builder/rpm \
+		rpmbuild/centos7
+	docker run \
+		-v $$PWD/deploy2/rpm/pkg:/srv/pkg \
+		-v $$PWD/bin/deploy2:/home/builder/rpm/deploy \
+		-v $$PWD/deploy2/rpm:/home/builder/rpm \
 		rpmbuild/centos7
 
 .PHONY: redeploy
@@ -65,7 +72,9 @@ protoc:
 
 .PHONY: dist
 dist: docker dep
+	# TODO(aqu): Only needed packages should be in each folder and not just copied over
 	cd ./deploy/ && ./airgap-prepare.sh
+	cp -a ./deploy/dist/ ./deploy2/dist/
 
 .PHONY: dep
 dep:
@@ -77,6 +86,7 @@ dep:
 .PHONY: distclean
 distclean:
 	-rm -r ./deploy/dist
+	-rm -r ./deploy2/dist
 
 .PHONY: test
 test: testopa
@@ -85,3 +95,7 @@ test: testopa
 .PHONY: testopa
 testopa:
 	docker run --rm -it -v ${PWD}/policies:/policies/ openpolicyagent/opa test -v /policies/
+
+.PHONY: package
+package:
+	tar --transform 's/.*\///g' -czvf package/karavi_authorization_${DOCKER_TAG}.tar.gz ./deploy/rpm/x86_64/karavi-authorization-initial-${VERSION_TAG}.x86_64.rpm ./deploy2/rpm/x86_64/karavi-authorization-final-${VERSION_TAG}.x86_64.rpm ./scripts/install_karavi_auth.sh

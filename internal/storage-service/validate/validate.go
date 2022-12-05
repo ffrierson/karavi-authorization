@@ -59,6 +59,8 @@ func (v *StorageValidator) Validate(ctx context.Context, systemID string, system
 		vFn = PowerMax
 	case "powerscale":
 		vFn = PowerScale
+	case "unity":
+		vFn = Unity
 	default:
 		return fmt.Errorf("system type %s is not supported", systemType)
 	}

@@ -23,6 +23,7 @@ const (
 	powerflex  = "powerflex"
 	powermax   = "powermax"
 	powerscale = "powerscale"
+	unity      = "unity"
 )
 
 // Storage represents a map of storage system types.
@@ -44,6 +45,7 @@ var SupportedStorageTypes = map[string]struct{}{
 	powerflex:  {},
 	powermax:   {},
 	powerscale: {},
+	unity:      {},
 }
 
 // SystemID wraps a system ID to be a quoted string because system IDs could be all numbers

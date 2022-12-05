@@ -186,6 +186,161 @@ storage:
 	})
 }
 
+func TestValidateUnity(t *testing.T) {
+	// Happy paths
+	t.Run("Success", func(t *testing.T) {
+		// create mock backend unity
+		goodBackendUnity := httptest.NewTLSServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/login":
+					fmt.Fprintf(w, `"token"`)
+				case "/api/version":
+					fmt.Fprintf(w, "3.5")
+				default:
+					t.Errorf("unhandled request path: %s", r.URL.Path)
+				}
+			}))
+		defer goodBackendUnity.Close()
+
+		// define check functions to pass or fail tests
+		type checkFn func(*testing.T, error)
+
+		errIsNil := func(t *testing.T, err error) {
+			if err != nil {
+				t.Errorf("expected nil err, got %v", err)
+			}
+		}
+
+		// temporarily set k8s.GetPowerFlexEndpoint to mock powerflex
+		oldGetUnityEndpoint := validate.GetUnityEndpoint
+		validate.GetUnityEndpoint = func(system types.System) string {
+			return goodBackendUnity.URL
+		}
+		defer func() { validate.GetUnityEndpoint = oldGetUnityEndpoint }()
+
+		// define the tests
+		tests := map[string]func(t *testing.T) (validate.Kube, string, types.System, checkFn){
+			"success": func(t *testing.T) (validate.Kube, string, types.System, checkFn) {
+				// configure fake k8s with storage secret
+				data := []byte(fmt.Sprintf(`
+storage:
+  unity:
+    542a2d5f5122210f:
+      endpoint: %s
+      insecure: true
+      password: Password123
+      user: admin`, goodBackendPowerFlex.URL))
+
+				secret := &v1.Secret{
+					ObjectMeta: meta.ObjectMeta{
+						Name:      k8s.StorageSecret,
+						Namespace: "test",
+					},
+					Data: map[string][]byte{
+						k8s.StorageSecretDataKey: data,
+					},
+				}
+
+				fakeClient := fake.NewSimpleClientset(secret)
+
+				newSystem := types.System{
+					User:     "admin",
+					Password: "Password123",
+					Endpoint: goodBackendUnity.URL,
+					Insecure: true,
+				}
+
+				api := &k8s.API{
+					Client:    fakeClient,
+					Namespace: "test",
+					Lock:      sync.Mutex{},
+					Log:       logrus.NewEntry(logrus.StandardLogger()),
+				}
+
+				return api, "542a2d5f5122210f", newSystem, errIsNil
+			},
+		}
+
+		// run the tests
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				kube, systemID, system, checkFn := tc(t)
+				rv := validate.NewStorageValidator(kube, logrus.NewEntry(logrus.StandardLogger()))
+				err := rv.Validate(context.Background(), systemID, "unity", system)
+				checkFn(t, err)
+			})
+		}
+	})
+
+	// Error cases
+	t.Run("Error", func(t *testing.T) {
+
+		// define check functions to pass or fail tests
+		type checkFn func(*testing.T, error)
+
+		errIsNotNil := func(t *testing.T, err error) {
+			if err == nil {
+				t.Errorf("expected an err, got nil")
+			}
+		}
+
+		// define the tests
+		tests := map[string]func(t *testing.T) (validate.Kube, string, types.System, checkFn){
+			"fail to connect": func(t *testing.T) (validate.Kube, string, types.System, checkFn) {
+				// configure fake k8s with storage secret
+				fakeClient := fake.NewSimpleClientset()
+
+				newSystem := types.System{
+					User:     "admin",
+					Password: "Password123",
+					Endpoint: "0.0.0.0:443",
+					Insecure: false,
+				}
+
+				api := &k8s.API{
+					Client:    fakeClient,
+					Namespace: "test",
+					Lock:      sync.Mutex{},
+					Log:       logrus.NewEntry(logrus.StandardLogger()),
+				}
+
+				return api, "542a2d5f5122210f", newSystem, errIsNotNil
+			},
+			"invalid endpoint": func(t *testing.T) (validate.Kube, string, types.System, checkFn) {
+				// configure fake k8s with storage secret
+				fakeClient := fake.NewSimpleClientset()
+
+				newSystem := types.System{
+					User:     "admin",
+					Password: "Password123",
+					Endpoint: "invalid-endpoint",
+					Insecure: true,
+				}
+
+				api := &k8s.API{
+					Client:    fakeClient,
+					Namespace: "test",
+					Lock:      sync.Mutex{},
+					Log:       logrus.NewEntry(logrus.StandardLogger()),
+				}
+
+				return api, "542a2d5f5122210f", newSystem, errIsNotNil
+			},
+		}
+
+		// run the tests
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				kube, systemID, system, checkFn := tc(t)
+				rv := validate.NewStorageValidator(kube, logrus.NewEntry(logrus.StandardLogger()))
+				err := rv.Validate(context.Background(), systemID, "unity", system)
+				checkFn(t, err)
+			})
+		}
+	})
+}
+
 func TestValidatePowerMax(t *testing.T) {
 	// Happy pahts
 	t.Run("Success", func(t *testing.T) {

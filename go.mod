@@ -5,9 +5,9 @@ go 1.19
 require (
 	github.com/alicebob/miniredis/v2 v2.17.0
 	github.com/dell/goisilon v1.9.0
-	github.com/dell/gounity v1.11.0
 	github.com/dell/gopowermax/v2 v2.0.0
 	github.com/dell/goscaleio v1.8.0
+	github.com/dell/gounity v1.11.1-0.20221109092703-f4347402d30c
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/go-redis/redis v6.15.9+incompatible
@@ -46,7 +46,6 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/dell/gounity v1.11.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/go-logr/stdr v1.2.0 // indirect

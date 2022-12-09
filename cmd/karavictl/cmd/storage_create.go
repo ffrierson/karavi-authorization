@@ -28,11 +28,10 @@ import (
 	"syscall"
 
 	pscale "github.com/dell/goisilon"
-	"github.com/dell/gounity"
 	pmax "github.com/dell/gopowermax/v2"
 	types "github.com/dell/gopowermax/v2/types/v100"
-	github.com/dell/gounity"
 	"github.com/dell/goscaleio"
+	"github.com/dell/gounity"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )

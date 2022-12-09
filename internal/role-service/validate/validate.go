@@ -65,6 +65,8 @@ func (v *RoleValidator) Validate(ctx context.Context, role *roles.Instance) erro
 		vFn = PowerMax
 	case "powerscale":
 		vFn = PowerScale
+	case "unity":
+		vFn = Unity
 	default:
 		return fmt.Errorf("system type %s is not supported", systemType)
 	}

@@ -752,3 +752,185 @@ func write(t *testing.T, w io.Writer, file string) {
 		t.Fatal(err)
 	}
 }
+
+func TestValidateUnity(t *testing.T) {
+	// Happy paths
+	t.Run("Success", func(t *testing.T) {
+		// Creates a fake unity handler
+		goodBackendUnity := httptest.NewTLSServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/types/loginSessionInfo":
+					w.WriteHeader(http.StatusOK)
+				case "/api/instances/pool/bronze":
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprintf(w, `{"attrs":[{"name":"is_hidden","value":false},{"name":"bronze","value":76}]}`)
+				default:
+					t.Errorf("unhandled request path: %s", r.URL.Path)
+				}
+			}))
+		defer goodBackendUnity.Close()
+
+		oldGetUnityEndpoint := validate.GetUnityEndpoint
+		validate.GetUnityEndpoint = func(storageSystemDetails types.System) string {
+			return goodBackendUnity.URL
+		}
+		defer func() { validate.GetUnityEndpoint = oldGetUnityEndpoint }()
+
+		// define check functions to pass or fail tests
+		type checkFn func(*testing.T, error)
+
+		errIsNil := func(t *testing.T, err error) {
+			if err != nil {
+				t.Errorf("expected nil err, got %v", err)
+			}
+		}
+
+		tests := map[string]func(t *testing.T) (validate.Kube, *roles.Instance, checkFn){
+			"success": func(t *testing.T) (validate.Kube, *roles.Instance, checkFn) {
+				// configure fake k8s with storage secret
+				data := []byte(fmt.Sprintf(`
+storage:
+  unity:
+    myUnity:
+      endpoint: %s
+      insecure: true
+      password: Password123
+      user: admin`, goodBackendUnity.URL))
+
+				secret := &v1.Secret{
+					ObjectMeta: meta.ObjectMeta{
+						Name:      k8s.StorageSecret,
+						Namespace: "test",
+					},
+					Data: map[string][]byte{
+						k8s.StorageSecretDataKey: data,
+					},
+				}
+
+				fakeClient := fake.NewSimpleClientset(secret)
+
+				role := &roles.Instance{
+					RoleKey: roles.RoleKey{
+						Name:       "NewRole3",
+						SystemType: "unity",
+						SystemID:   "myUnity",
+						Pool:       "bronze",
+					},
+					Quota: 0,
+				}
+
+				api := &k8s.API{
+					Client:    fakeClient,
+					Namespace: "test",
+					Lock:      sync.Mutex{},
+					Log:       logrus.NewEntry(logrus.StandardLogger()),
+				}
+
+				return api, role, errIsNil
+			},
+		}
+
+		// run the tests
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				kube, role, checkFn := tc(t)
+				rv := validate.NewRoleValidator(kube, logrus.NewEntry(logrus.StandardLogger()))
+				err := rv.Validate(context.Background(), role)
+				checkFn(t, err)
+			})
+		}
+	})
+
+	// Error paths
+	t.Run("Error", func(t *testing.T) {
+		// Creates a fake unity handler
+		ts := httptest.NewTLSServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/types/loginSessionInfo":
+					w.WriteHeader(http.StatusOK)
+				case "/api/instances/pool/bronze":
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprintf(w, `{"attrs":[{"name":"is_hidden","value":false},{"name":"bronze","value":76}]}`)
+				default:
+					t.Errorf("unhandled request path: %s", r.URL.Path)
+				}
+			}))
+		defer ts.Close()
+
+		oldGetUnityEndpoint := validate.GetUnityEndpoint
+		validate.GetUnityEndpoint = func(storageSystemDetails types.System) string {
+			return ts.URL
+		}
+		defer func() { validate.GetUnityEndpoint = oldGetUnityEndpoint }()
+
+		// define check functions to pass or fail tests
+		type checkFn func(*testing.T, error)
+
+		errIsNotNil := func(t *testing.T, err error) {
+			if err == nil {
+				t.Errorf("expected an err, got nil")
+			}
+		}
+
+		tests := map[string]func(t *testing.T) (validate.Kube, *roles.Instance, checkFn){
+			"non-zero quota": func(t *testing.T) (validate.Kube, *roles.Instance, checkFn) {
+				// configure fake k8s with storage secret
+				data := []byte(fmt.Sprintf(`
+storage:
+  unity:
+    myUnity:
+      Endpoint: %s
+      Insecure: true
+      Password: Password123
+      User: admin`, ts.URL))
+
+				secret := &v1.Secret{
+					ObjectMeta: meta.ObjectMeta{
+						Name:      k8s.StorageSecret,
+						Namespace: "test",
+					},
+					Data: map[string][]byte{
+						k8s.StorageSecretDataKey: data,
+					},
+				}
+
+				fakeClient := fake.NewSimpleClientset()
+				_, err := fakeClient.CoreV1().Secrets("test").Create(context.Background(), secret, meta.CreateOptions{})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				role := &roles.Instance{
+					RoleKey: roles.RoleKey{
+						Name:       "NewRole3",
+						SystemType: "unity",
+						SystemID:   "myUnity",
+						Pool:       "bronze",
+					},
+					Quota: 1000,
+				}
+
+				api := &k8s.API{
+					Client:    fakeClient,
+					Namespace: "test",
+					Lock:      sync.Mutex{},
+					Log:       logrus.NewEntry(logrus.StandardLogger()),
+				}
+
+				return api, role, errIsNotNil
+			},
+		}
+
+		// run the tests
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				kube, role, checkFn := tc(t)
+				rv := validate.NewRoleValidator(kube, logrus.NewEntry(logrus.StandardLogger()))
+				err := rv.Validate(context.Background(), role)
+				checkFn(t, err)
+			})
+		}
+	})
+}

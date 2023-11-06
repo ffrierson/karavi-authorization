@@ -27,6 +27,7 @@ import (
 	"karavi-authorization/internal/sdc"
 	"karavi-authorization/internal/token"
 	"karavi-authorization/internal/web"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -137,12 +138,12 @@ func buildSystem(ctx context.Context, e SystemEntry, log *logrus.Entry) (*System
 	// the token getter because of data races with concurrent usage so we
 	// create a powerflex client for each
 
-	spCacheClient, err := goscaleio.NewClientWithArgs(tgt.String(), "", 0, true, false)
+	spCacheClient, err := goscaleio.NewClientWithArgs(tgt.String(), "", math.MaxInt64, true, false)
 	if err != nil {
 		return nil, err
 	}
 
-	tgClient, err := goscaleio.NewClientWithArgs(tgt.String(), "", 0, true, false)
+	tgClient, err := goscaleio.NewClientWithArgs(tgt.String(), "", math.MaxInt64, true, false)
 	if err != nil {
 		return nil, err
 	}
